@@ -11,8 +11,8 @@
 #include "DNN_api.h"
 
 int main(int argc, const char * argv[]) {
-    double X[] = {1,2,3,4,5,6,7,8,9};
-    double Y[] = {2,4,6,8,10,12,14,16,18};
+    double X[] = {2,6,7,1,8,3,9,4,5};
+    double Y[] = {4,12,14,2,16,6,18,8,10};
     
     int layers[] = {50,30};
     S_DNN_Model *dnn_Model = CreateDnnModel(1, 1, 2, layers, "sigmoid");
