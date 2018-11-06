@@ -15,13 +15,14 @@
 #define OUT
 
 /*
- *   sigmoid激活函数
+ *   sigmoid function
  */
 static double sigmoid(double in)
 {
     return 1.0 / (1.0 + exp(-1.0 * in));
 }
 
+/* get number of all ws in the model*/
 static int AllNum_W(S_DNN_Model *model)
 {
     int sum = 0;
@@ -36,6 +37,7 @@ static int AllNum_W(S_DNN_Model *model)
     return sum;
 }
 
+/* get number of all bs in the model*/
 static int AllNum_b(S_DNN_Model *model)
 {
     int sum = 0;
@@ -50,6 +52,7 @@ static int AllNum_b(S_DNN_Model *model)
     return sum;
 }
 
+/* generate gauss random number for initializing w */
 double gaussrand()
 {
     static double U, V;
@@ -69,7 +72,7 @@ double gaussrand()
     return Z;
 }
 /*
- *   创建DNN（深度神经网络）模型
+ *   create DNN(Deep Neuron Network) model
  */
 S_DNN_Model *CreateDnnModel(int input_num,
                             int output_num,
@@ -78,27 +81,26 @@ S_DNN_Model *CreateDnnModel(int input_num,
                             char activeFunc[])
 {
     S_DNN_Model *p_model = malloc(sizeof(S_DNN_Model));
-    /* step 1: 设定 模型参数 */
+    /* step 1: set up model parameters */
     p_model->model_parameters.input_num = input_num;
     p_model->model_parameters.output_num = output_num;
     p_model->model_parameters.layers_num = layers_num;
     p_model->model_parameters.numOfeveryLayer = layers_Array;
     strcpy(p_model->model_parameters.activeFunction, activeFunc);
     
-    /* step 2: 初始化模型的 权重 w 和 b
-    除了w和dw下标从0开始外，其它的数组都是从下标1开始 */
+    /* step 2: initialize model's w and b, index of w and dw start with 0, other with 1. */
     int num_w = AllNum_W(p_model);
     int num_b = AllNum_b(p_model);
     p_model->w = malloc(sizeof(double) * num_w);
     p_model->dw = malloc(sizeof(double) * num_w);
     p_model->b = malloc(sizeof(double) * (num_b + 1));
     p_model->db = malloc(sizeof(double) * (num_b + 1));
-    //初始化b
+    //initialize b
     memset(p_model->b, 0, sizeof(sizeof(double) * (num_b + 1)));
-    //初始化w
+    //initialize w
     double *w = p_model->w;
     for(int i = 0; i < num_w; i++)
-        w[i] = gaussrand();
+        w[i] = 0.1 * gaussrand();
     
     return p_model;
 }
@@ -117,7 +119,7 @@ S_Train_Parameters *GenerateTrainPara(double lr,
     return p_TrainPara;
 }
 
-/* 求当前层的前一层神经元个数*/
+/* get neuron number of fronter layer */
 static int GetformerLayerNeuNum(int layer, S_Model_Parameters *para)
 {
     if (layer == 0)
@@ -127,7 +129,7 @@ static int GetformerLayerNeuNum(int layer, S_Model_Parameters *para)
     return para->numOfeveryLayer[layer - 2];
 }
 
-/* 求当前层的下一层神经元个数*/
+/* get neuron number of next layer */
 static int GetnextLayerNeuNum(int layer, S_Model_Parameters *para)
 {
     if (layer == 0)
@@ -139,7 +141,7 @@ static int GetnextLayerNeuNum(int layer, S_Model_Parameters *para)
     
 }
 
-/* 求当前层神经元个数*/
+/* get the neuron number of current layer */
 static int GetcurrLayerNeuNum(int layer, S_Model_Parameters *para)
 {
     if (layer == 0)
@@ -159,7 +161,7 @@ static void updateSum(double *sum_dw, double *dw, int Num)
 }
 
 /*
- *  一次前向传播过程
+ *  forward propagation
  */
 static double *forward_propagation(double *X,
                          S_DNN_Model *model,
@@ -167,11 +169,12 @@ static double *forward_propagation(double *X,
                          double *z_output,
                          double *a_output)
 {
-    double *currInput = NULL;  //指向当前样例输入的指针
-    double *hide_units_output = NULL;  //指向隐藏神经元输出数组的指针
+    double *currInput = NULL;  //pointer which point to current Input
+    double *hide_units_output = NULL;  //指向隐藏神经元输出数组的指针,将结果返回到函数外
+    double *avtive_value_output = NULL;  //指向隐藏神经元激活函数输出数组的指针，将结果返回到函数外
+    
     double *curr_hide_units = NULL;  //指向当前要进行计算的隐藏神经元指针
     double *curr_hide_active_units = NULL;  //指向当前要进行计算的隐藏神经元指针
-    double *avtive_value_output = NULL;  //指向隐藏神经元激活函数输出数组的指针
     double *curr_active_value = NULL;  //指向当前用于计算的隐藏神经元激活值指针
     double *w = model->w;
     double *b = model->b;
@@ -179,30 +182,31 @@ static double *forward_propagation(double *X,
     double *curr_b = NULL;
     int input_num = 0;
     int DnnlayerNum = 0;
-    int neuron_num = 0;  //全部隐藏层神经元个数
+    int neuron_num = 0;  //all neurons's number in hide layers
     int NextLayer_neuronNum = 0;
     int currLayer_neuronNum = 0;
     
     input_num = model->model_parameters.input_num;
     DnnlayerNum = model->model_parameters.layers_num;
-    neuron_num = AllNum_b(model);  //隐藏层b的数量和神经元数量相等
+    neuron_num = AllNum_b(model);  //the number of hide layer's b is equal to neuron
     hide_units_output = z_output;
     avtive_value_output = a_output;
     currInput = X + sample_i * input_num;
     
-    //从输入层开始传播到第一层隐藏层
+    //forward propagate from input layer to 1st hide layer
     int layer1_NeuNum = GetnextLayerNeuNum(0, &model->model_parameters);
     double tmp_sum;
     for (int neuron = 1; neuron <= layer1_NeuNum; neuron++)
     {
-        tmp_sum = 0;
+        tmp_sum = 0.0;
         for (int in = 0; in < input_num; in++)
         {
-             tmp_sum += currInput[in] * w[input_num * (neuron - 1) + in];
-         }
-        tmp_sum +=  + b[neuron];
+            int tmp = input_num * (neuron - 1) + in;
+            tmp_sum += currInput[in] * w[tmp];
+        }
+        tmp_sum += b[neuron];
         hide_units_output[neuron] = tmp_sum;
-        //求sigmoid激活值
+        //compute activation value with sigmoid
         avtive_value_output[neuron] = sigmoid(tmp_sum);
     }
     
@@ -211,27 +215,26 @@ static double *forward_propagation(double *X,
     curr_hide_units = hide_units_output + layer1_NeuNum + 1;
     curr_hide_active_units = avtive_value_output + layer1_NeuNum + 1;
     curr_active_value = avtive_value_output + 1;
-    for (int layer = 1; layer <= DnnlayerNum; layer++) //layer从1开始，1表示隐藏层第一层
+    for (int layer = 1; layer <= DnnlayerNum; layer++) //layer starts with 1, and 1 represents the 1st layer of hide layers
     {
-        //layer包括输出层
         currLayer_neuronNum = GetcurrLayerNeuNum(layer, &model->model_parameters);
         NextLayer_neuronNum = GetnextLayerNeuNum(layer, &model->model_parameters);
         
         for (int neuron = 1; neuron <= NextLayer_neuronNum; neuron++)
         {
-            tmp_sum = 0;
+            tmp_sum = 0.0;
             for (int in = 0; in < currLayer_neuronNum; in++)
             {
-                tmp_sum += curr_active_value[in]
-                           *curr_w[currLayer_neuronNum * (neuron - 1) + in];
+                int tmp = currLayer_neuronNum * (neuron - 1) + in;
+                tmp_sum += curr_active_value[in] * curr_w[tmp];
             }
             tmp_sum += curr_b[neuron - 1];
             curr_hide_units[neuron - 1] = tmp_sum;
-            //用sigmoid求激活值
+            //compute activation value with sigmoid
             curr_hide_active_units[neuron - 1] = sigmoid(tmp_sum);
         }
         
-        //更新指针，进行下一层计算
+        //update pointers for compution of next layer
         if(layer != DnnlayerNum)
         {
             curr_w += currLayer_neuronNum * NextLayer_neuronNum;
@@ -242,28 +245,28 @@ static double *forward_propagation(double *X,
         }
     }
     
-    //返回第一个输出神经元的指针
+    //return pointer which points to first output neuron
     int first_output_num = neuron_num - model->model_parameters.output_num + 1;
     return &hide_units_output[first_output_num];
 }
 
 /*
- * 一次反向传播过程
+ *  back propagation
  */
 void back_propagation(S_DNN_Model *model,
                       double x,
                       double *dz,
                       double *active_unit_output)
 {
-    int layers_num = model->model_parameters.layers_num;  //隐藏层数目
+    int layers_num = model->model_parameters.layers_num;  //number of hide layers
     S_Model_Parameters *p_mp = &model->model_parameters;
     double *w = NULL;
     double *dw = NULL;
     double *db = NULL;
-    double *curr_dz = NULL;  //指向当前dz的指针
-    double *curr_w = NULL;  //指向当前w的指针
-    double *curr_dw = NULL;  //指向当前dw的指针
-    double *curr_db = NULL;  //指向当前db的指针
+    double *curr_dz = NULL;  //pointer which points to current dz
+    double *curr_w = NULL;  //pointer which points to current w
+    double *curr_dw = NULL;  //pointer which points to current dw
+    double *curr_db = NULL;  //pointer which points to current db
     double *curr_active_unit_output = NULL;
     double *last_dz = NULL;
     int neuron_num = 0;
@@ -274,31 +277,33 @@ void back_propagation(S_DNN_Model *model,
     dw = model->dw;
     db = model->db;
     w = model->w;
-    neuron_num = AllNum_b(model);  //隐藏层b的数量和神经元数量相等
+    neuron_num = AllNum_b(model);  //the number of hide layer's b is equal to neuron
     w_num = AllNum_W(model);
     
     curr_dz = dz + neuron_num - p_mp->output_num + 1;
-    curr_db = db + neuron_num;
+    curr_db = db + neuron_num + 1;
     curr_active_unit_output = active_unit_output + neuron_num - p_mp->output_num + 1;
     curr_w = w + w_num;
     curr_dw = dw + w_num;
     
-    /* 每一次循环更新一层的b并且记录下dw，layer输出层开始一直遍历到隐藏层首层 */
+    /* update db of current layer and dz of fronter layer in each loop, and update dw between them. From output layer to 2nd layer of hide layers （每次循环更新当前层的神经元的db和前一层神经元的dz，并且更新他们之间的全连接dw。从输出层遍历到隐藏层第二层。）*/
     for (int layer = layers_num + 1; layer >= 2; layer--)
     {
-        //分别计算当前层和上一层神经元个数
+        //compute neuron numbers of current and fronter layer
         currLayer_NeuNum = GetcurrLayerNeuNum(layer, p_mp);
         formerLayer_neuNum = GetformerLayerNeuNum(layer, p_mp);
         
-        //更新指针
+        //update pointers
         last_dz = curr_dz;
         curr_dz -= formerLayer_neuNum;
-        curr_db -= currLayer_NeuNum;
         curr_active_unit_output -= formerLayer_neuNum;
+        
+        curr_db -= currLayer_NeuNum;
+        
         curr_w -= currLayer_NeuNum * formerLayer_neuNum;
         curr_dw -= currLayer_NeuNum * formerLayer_neuNum;
         
-        //求前一层dw和当前层db
+        //compute db of current layer and dw of fronter layer
         for (int c_neuron = 1; c_neuron <= currLayer_NeuNum; c_neuron++)
         {
             for (int neuron = 1; neuron <= formerLayer_neuNum; neuron++)
@@ -309,32 +314,35 @@ void back_propagation(S_DNN_Model *model,
             curr_db[c_neuron - 1] = last_dz[c_neuron - 1];
         }
 
-        //求前一层的每个神经元的dz
+        //compute dz of every neuron in fronter layer
         for (int neuron = 1; neuron <= formerLayer_neuNum; neuron++)
         {
             curr_dz[neuron - 1] = 0;
-            //求dz
+            //compute dz
             for (int c_neuron = 1; c_neuron <= currLayer_NeuNum; c_neuron++)
             {
                 int tmp = neuron - 1 + formerLayer_neuNum * (c_neuron - 1);
                 curr_dz[neuron - 1] += last_dz[c_neuron - 1] * curr_w[tmp];
             }
+            double tmp = curr_active_unit_output[neuron - 1];
+            double a = tmp * (1 - tmp);
+            curr_dz[neuron - 1] *= a;
         }
     }
     
-    //求隐藏层第一层到输入层的dw
+    //compute the dw and db from hide layer 1 to input layer
     currLayer_NeuNum = GetcurrLayerNeuNum(1, p_mp);
     formerLayer_neuNum = p_mp->input_num;
     last_dz = curr_dz;
     curr_db -= currLayer_NeuNum;
     curr_dw -= currLayer_NeuNum * formerLayer_neuNum;
-    //求dw和db
+    //compute db and dw
     for (int c_neuron = 1; c_neuron <= currLayer_NeuNum; c_neuron++)
     {
         for (int neuron = 1; neuron <= formerLayer_neuNum; neuron++)
         {
             int tmp = formerLayer_neuNum * (c_neuron - 1) + (neuron - 1);
-            curr_dw[tmp] = 0;//last_dz[c_neuron - 1] * x;
+            curr_dw[tmp] = last_dz[c_neuron - 1] * x;
         }
         curr_db[c_neuron - 1] = last_dz[c_neuron - 1];
     }
@@ -344,13 +352,12 @@ void back_propagation(S_DNN_Model *model,
 
 void Train_DnnModel(double *X,
                     double *Y,
-                    int sample_size,  //样本个数
+                    int sample_size,  //number of sample
                     S_DNN_Model *model,
                     S_Train_Parameters *hyperPara)
 {
     int iterationNum = 0;
     double once_loss;
-    //double once_dz;
     int neuron_num = 0;
     double loss;
     double *hide_unit_output = NULL;
@@ -363,13 +370,13 @@ void Train_DnnModel(double *X,
     double *dz = NULL;
     double *sum_dw = NULL;
     double *sum_db = NULL;
-    double *curr_Y = NULL; //指向当前输出结果的指针
+    double *curr_Y = NULL; //pointer which point to current output
     double *curr_dz = NULL;
     double lr;
     
     int output_num = model->model_parameters.output_num;
     int WNum = AllNum_W(model);
-    neuron_num = AllNum_b(model);  //隐藏层b的数量和神经元数量相等
+    neuron_num = AllNum_b(model);  //the number of hide layer's b is equal to neuron
     hide_unit_output = malloc(sizeof(double) * (neuron_num + 1));
     active_unit_output = malloc(sizeof(double) * (neuron_num + 1));
     sum_dw = malloc(sizeof(double) * WNum);
@@ -380,10 +387,10 @@ void Train_DnnModel(double *X,
     iterationNum = hyperPara->iteration;
     lr = hyperPara->learn_rate;
     
-    //开始迭代
+    //begin iteration
     for (int iter = 1; iter <= iterationNum; iter++)
     {
-        /* 开始新的一次迭代开始 */
+        /* new round iteration */
         
         loss = 0;
         memset(sum_dw, 0, sizeof(double) * WNum);
@@ -391,11 +398,12 @@ void Train_DnnModel(double *X,
         for (int i = 0; i < sample_size; i++)
         {
             memset(dz, 0, sizeof(double) * (neuron_num + 1));
+            memset(hide_unit_output, 0, sizeof(double) * (neuron_num + 1));
+            memset(active_unit_output, 0, sizeof(double) * (neuron_num + 1));
             curr_Y = Y + i * output_num;
             curr_dz = dz + neuron_num - output_num + 1;
             predictValue = forward_propagation(X, model, i, OUT hide_unit_output, OUT active_unit_output);
-            //计算损失值
-            //目前只是把输出层当成一个来处理，后期需修改
+            //compute loss
             once_loss = 0;
             for (int neuron = 0; neuron < output_num; neuron++)
             {
@@ -404,7 +412,7 @@ void Train_DnnModel(double *X,
             }
             loss += once_loss;
             
-            //反向传播
+            //back propagation
             back_propagation(model, X[i], dz, active_unit_output);
             dw = model->dw;
             db = model->db;
@@ -412,30 +420,36 @@ void Train_DnnModel(double *X,
             updateSum(sum_db, db, neuron_num + 1);
         }
         
-        //输出每次迭代的平均loss
+        //output the average loss each time
         loss /= sample_size;
         printf("iteration %d--loss: %f\n", iter, loss);
-        //更新dw
+        //update dw
         for (int i = 0; i < WNum; i++)
         {
             w[i] -= lr * (sum_dw[i] / sample_size);
         }
-        //更新db
+        //update db
         for (int i = 1; i <= neuron_num; i++)
         {
             b[i] -= lr * (sum_db[i] / sample_size);
         }
     }
     
+    //free tmp memory
+    free(hide_unit_output);
+    free(active_unit_output);
+    free(sum_db);
+    free(sum_dw);
+    
     return ;
 }
 
 /*
- *  用模型进行预测
+ *  predict with the model
  */
 double *Predict(double *X, S_DNN_Model *model)
 {
-    int neuron_num = AllNum_b(model);  //隐藏层b的数量和神经元数量相等
+    int neuron_num = AllNum_b(model);  //the number of hide layer's b is equal to neuron
     double *hide_unit_output = malloc(sizeof(double) * (neuron_num + 1));
     double *active_unit_output = malloc(sizeof(double) * (neuron_num + 1));
     double *result = forward_propagation(X, model, 0, hide_unit_output, active_unit_output);
@@ -444,7 +458,7 @@ double *Predict(double *X, S_DNN_Model *model)
 
 
 /*
- *  打印模型的w和b
+ *  print model's w and b
  */
 void PrintW(S_DNN_Model *model)
 {
@@ -489,5 +503,27 @@ void PrintB(S_DNN_Model *model)
         printf("\n");
     }
     
+    return ;
+}
+
+void freeModel(S_DNN_Model *model)
+{
+    if (model->b != NULL)
+    {
+        free(model->b);
+    }
+    if (model->db != NULL)
+    {
+        free(model->db);
+    }
+    if (model->w != NULL)
+    {
+        free(model->w);
+    }
+    if (model->dw != NULL)
+    {
+        free(model->dw);
+    }
+
     return ;
 }

@@ -11,15 +11,15 @@
 #include "DNN_api.h"
 
 int main(int argc, const char * argv[]) {
-    double X[] = {2,6,7,1,8,3,9,4,5};
-    double Y[] = {4,12,14,2,16,6,18,8,10};
+    double X[] = {2.0,6.0,7.0,1.0,8.0,3.0,9.0,4.0,5.0};
+    double Y[] = {4.0,12.0,14.0,2.0,16.0,6.0,18.0,8.0,10.0};
     
     int layers[] = {50,30};
     S_DNN_Model *dnn_Model = CreateDnnModel(1, 1, 2, layers, "sigmoid");
     S_Train_Parameters *train_para = GenerateTrainPara(0.01, "GD", 100, 20000);
     Train_DnnModel(X, Y, 9, dnn_Model, train_para);
     
-    //输出w和b
+    //print w and b
     PrintW(dnn_Model);
     PrintB(dnn_Model);
     double x = 3;
@@ -31,6 +31,8 @@ int main(int argc, const char * argv[]) {
     x = 10;
     result = *Predict(&x, dnn_Model);
     printf("x = 10, predict result: %f\n", result);
+    
+    freeModel(dnn_Model);
     
     return 0;
 }

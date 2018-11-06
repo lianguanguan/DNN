@@ -10,16 +10,16 @@
 #define DNN_api_h
 
 
-//模型参数
+//parameters of the model
 typedef struct Model_parameters{
     int input_num;
-    int layers_num;  //不包括input_num和output_num
+    int layers_num;  //not including input adn output layers
     int output_num;
-    int *numOfeveryLayer;  //指向一个整形数组，长度为layers_num
+    int *numOfeveryLayer;  //pointer which point to a int-type array whose length islayers_num
     char activeFunction[10];
 }S_Model_Parameters;
 
-//训练超参数
+//superparameters of the model
 typedef struct Train_parameters{
     int batch_size;  //批量个数
     int iteration;  //迭代次数
@@ -27,13 +27,13 @@ typedef struct Train_parameters{
     char optimizer_method[6];  //优化方法（梯度下降、随机梯度下降、动量、adam）
 }S_Train_Parameters;
 
-//神经网络模型
+//DNN model
 typedef struct DNN_Model{
     S_Model_Parameters model_parameters;
     double *w;
     double *b;
-    double *dw;  //用于计算梯度时使用
-    double *db;  //用于计算梯度时使用
+    double *dw;  //used for computing gradient
+    double *db;  //used for computing gradient
 }S_DNN_Model;
 
 S_DNN_Model *CreateDnnModel(int input_num,
@@ -49,19 +49,21 @@ S_Train_Parameters *GenerateTrainPara(double lr,
 
 void Train_DnnModel(double *X,
                     double *Y,
-                    int sample_size,  //样本个数
+                    int sample_size,
                     S_DNN_Model *model,
                     S_Train_Parameters *hyperPara);
 
 /*
- *  用模型进行预测
+ *  predict with the model
  */
 double *Predict(double *X, S_DNN_Model *model);
 
-double gaussrand();
+double gaussrand(void);
 
 void PrintW(S_DNN_Model *model);
 
 void PrintB(S_DNN_Model *model);
+
+void freeModel(S_DNN_Model *model);
 
 #endif /* DNN_api_h */
